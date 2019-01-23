@@ -1,0 +1,100 @@
+---
+title: "Playing with Data Viz R"
+author: "Jia Xin"
+date: "23 January 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+## R Markdown
+
+Playing with Data visualisation for school stuff. 
+just for fun. 
+
+
+```{r cars}
+
+data(mtcars)
+df <- as.data.frame(mtcars)
+df$cyl <- as.factor(df$cyl)
+df$gear <- as.factor(df$gear)
+df$am <- as.factor(df$am)
+#summary(df)
+str(df)
+
+counts <- table(mtcars$am, mtcars$gear)
+
+barplot(counts, main="car distribution by gears and trasnmisssion", xlab="no of gears", ylab = "numbers", col=c("darkblue","red"), legend.text = rownames(counts), names.arg = colnames(counts))
+
+plot(mtcars$mpg, mtcars$hp, xlab = "mpg", ylab = "hp", main = "mpg vs. hp",
+     col = "red", cex = 5*abs(mtcars$disp)/max(abs(mtcars$disp)) )
+
+#cex is to control the size of the dot. you pass in a small forumla (try a few times)
+text(mtcars$mpg, mtcars$hp, row.names(mtcars), cex=0.6, pos=1, col="blue")
+
+#for the coplot 
+coplot(mpg~hp|gear, data=df, row=1)
+# qPlot
+qplot(x = hp, y = mpg, data = df, color = cyl, facets = .~ gear)
+
+qplot(x = hp, y = mpg, data = df, color = cyl,
+facets= .~ gear, shape = am, label = rownames(mtcars),
+geom=c("text","point"), size=.5, hjust=-0.1)
+
+
+```
+
+## Including Plots
+
+You can also plot 3d plots like the ones below; 
+
+```{r pressure, echo=FALSE}
+
+library(scatterplot3d)
+attach(mtcars)
+scatterplot3d(mpg, wt, disp, main="3D Scatterplot")
+
+
+library(rgl)
+plot3d(wt, disp, mpg, col="red", size=3)
+
+```
+
+other types of chart such as Chernoff face , parallel plot etcs 
+
+e.g. width of the face are those with higher cylinder cars 
+similiar characteristics (i.e same face or twins) indicate similiar car performance e.g Cadillac and Lincoln. 
+
+cfvx  vrrrrrr 
+```{r pressure1, echo=FALSE}
+#install.packages("aplpack")
+library(aplpack)
+faces(mtcars)
+
+library(lattice)
+parallelplot(~mtcars | am,
+mtcars)
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r car}
+
+## PCA 
+library(mds)
+
+d <- dist(df)
+fit <- cmdscale(d,eig=TRUE, k=2)
+
+fit
+
+x <- fit$points[,1]
+y <- fit$points[,2]
+plot(x, y, xlab="Coordinate 1", ylab="Coordinate 2", main="Metric MDS", type="n")
+text(x, y, labels = row.names(df), cex=.6, pos=4, col="blue")
