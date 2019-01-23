@@ -1,0 +1,545 @@
+---
+title: "Text mining - Bag of Words model and Text Visualisation on Cars Recall News"
+author: "Jia Xin"
+date: "6 October 2018"
+output: html_document
+toc: yes
+---
+
+# Introduction
+
+The code practice below shows the Bag of Words (BoW) approach for Text Mining using R. Bag of Words  approached is used in this case study to quickly assess and visualise the large amount of text data we obtained from web scraping. From this excercise we can also understand the pros and cons of using BoW method. 
+
+Required packages to install for this source code. 
+
+
+```{r setup1, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(qdap)
+library(tm)
+library(dplyr)
+library(wordcloud)
+library(plotrix)
+library(dendextend)
+library(ggplot2)
+library(ggthemes)
+library(RWeka)
+
+
+#for overcoming java error when running
+#Sys.setenv(JAVA_HOME='C:\\Program Files\\Java\\jre1.8.0_181')
+#library(rJava)
+
+```
+
+## Our Approach
+
+Load files that are generated from web crawling. The text data we are going to analyse came form 2 major source, Cars.com and AutoBlog - wich boardcast news and provide details description of car models that are recalled.
+We will start off with analysis the header of news content from cars.com (Title.csv)
+
+```{r setup, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+Title <- read.csv(file="Title.csv", header=TRUE, sep=",")
+names <- read.csv(file="names.csv", header=TRUE, sep=",")
+Content <- read.csv(file="content.csv", header=TRUE, sep=",")
+
+```
+
+# Text and Data exploration
+
+We will first analyse the data from Cars.com by using the bag of words approach. A corpus for this carscom dataset has been created and frequent term is plotted to observe which words are frequently used.
+
+From the bar chart below; we observed that the word recall, alert etc. are commonly used in text. These words may not have useful values in this context thus one of of overcoming this issue is to normalise the freq. DO note that the data below has not yet been cleaned (and not lemmentise or has stop words removed).
+
+```{r cars, warning=FALSE, message=FALSE}
+
+#perform bag of words - then visualise 
+
+title_text <- names$title
+title_source <- VectorSource(title_text)
+title_corpus <- VCorpus(title_source)
+title_corpus
+
+title_corpus[[15]]
+
+# Print the content of the 15th tweet in title_corpus
+title_corpus[[15]][1]
+
+#str(title_corpus[[15]])
+str(title_text)
+
+#title_text <- as.character(title_text)
+
+#Let's find the most frequent words in our text and see whether we should get rid of some
+frequent_terms <- freq_terms(title_text, 30)
+plot(frequent_terms)
+
+# set word cloud
+set.seed(123)   
+wordcloud(words = frequent_terms$WORD, freq=frequent_terms$FREQ, min.freq = 2, colors=brewer.pal(7, "Dark2"))
+
+```
+
+
+
+# Perform Data Cleaning
+
+
+```{r tdidf, warning=FALSE, message=FALSE}
+
+# add stop words
+all_stops <- c("a", "s ", "q", "x", "us", "recall", "recalls", "alert", "vehicles", "fix", "th", stopwords("en"))
+
+# Well nothing stands out in particular, exepct ties and articles, so the standard wocabulary of stopwords
+# in English will do just fine.
+# Create the custom function that will be used to clean the corpus: clean_coupus
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, all_stops)
+  corpus <- tm_map(corpus, removeNumbers)
+  return(corpus)
+}
+# Apply your customized function to the tweet_corp: clean_corp
+clean_corp <- clean_corpus(title_corpus)
+# Print out a cleaned up tweet
+clean_corp[[227]][1]
+
+
+# Need to remove some of the stop words such as "recall", "alert", "and", "a" , "s" , "q" , etc
+#making a term document matrix:
+title_tdm <- TermDocumentMatrix(clean_corp, control = list(weighting = weightTfIdf))
+title_tdm
+
+title_m <- as.matrix(title_tdm)
+dim(title_m)
+title_m[148:159, 10:22]
+
+#dtm <- TermDocumentMatrix(docs)
+title_m <- as.matrix(title_tdm)
+v <- sort(rowSums(title_m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+
+```
+
+# Frequency Plot and Word Cloud
+After performing cleaing in corpus and normalisation; we have obtained the most frequent occuring words in cars.com datset. From this data source we notice that top 3 car manufacturers being mentioned in recall news (from cars.com) are Audi, Bmw and Mazada.
+
+
+```{r tdidf1, warning=FALSE, message=FALSE}
+barplot(d[1:10,]$freq, las = 2, names.arg = d[1:10,]$word,
+        col ="lightblue", main ="Most frequent words",
+        ylab = "Word frequencies")
+
+wordcloud(words = d$word, freq=d$freq, min.freq = 2, colors=brewer.pal(7, "Dark2"))
+
+
+```
+
+
+# Understand Text Content of Carcom News
+The web page content has already been loaed. The subsequent steps we will be performing the same cleaning and analysis on the web contents from cars.com. (content.csv)
+The content dataframe contains detailed articles about the model type and defects for defect etc. 
+
+```{r text, warning=FALSE, message=FALSE}
+
+#perform bag of words - then visualise 
+
+str(Content)
+nrow(Content)
+content_text <- Content$content
+content_source <- VectorSource(content_text)
+content_corpus <- VCorpus(content_source)
+content_corpus
+
+content_corpus[[15]]
+
+# Print the content of the 15th tweet in title_corpus
+content_corpus[[15]][1]
+
+str(content_corpus[[15]])
+
+content_text <- as.character(content_text)
+
+#Let's find the most frequent words in our tweets_text and see whether we should get rid of some
+frequent_terms1 <- freq_terms(content_text, 20)
+plot(frequent_terms1)
+
+all_stops <- c("administration", "S", "vehiclesafety" , "group" , "announce","increases", "editors", "line", "dealers", "sponsored", "content", "said", "learn", "accept", "begin", "aware","increasing", "hotline", "editorial", "cars", "number", "approximately", "traffic","adminstrations", "vehicle", "carscom", "will", ", wwwsafercargov", "find", "dealer", "repair" ,"carscoms","free", "may", "problem", "affected", "can","a", "s ", "q", "x", "us", "immediately", "wwwsafercargov", "info", "recall", "recalls", "alert", "vehicles", "fix", "check" ,"owners", "service" ,"modelyear",
+               "reviewers", "sales", "department", "departments", "notifying", "administrations", "manufactured", "automakers" ,"safety", "national", "trips", "source", "automotive", "website", "click","independent", "advertising" ,"policy","annouce", "call", "replace", "automaker", "news", "ownernotification", "model", "ethics", "longstanding", "dealership", "reviews", "dont", "department", "th", "visit", "go", "plant", "gle", "local", "need","gifts", "identification", "schedule", stopwords("en"))
+
+# Well nothing stands out in particular, exepct ties and articles, so the standard wocabulary of stopwords
+# in English will do just fine.
+# Create the custom function that will be used to clean the corpus: clean_coupus
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, all_stops)
+  corpus <- tm_map(corpus, removeNumbers)
+  return(corpus)
+}
+# Apply your customized function to the tweet_corp: clean_corp
+clean_corp1 <- clean_corpus(content_corpus)
+# Print out a cleaned up tweet
+clean_corp1[[227]][1]
+
+#fast cleaning 
+content_text <- removePunctuation(content_text)
+content_text <- removeNumbers(content_text)
+content_text <- tolower(content_text)
+content_text <- stripWhitespace(content_text)
+# Print text without standard stop words
+content_text <- removeWords(content_text, all_stops)
+
+#after "fast and crude cleaning"
+frequent_terms1 <- freq_terms(content_text, 30)
+plot(frequent_terms1)
+
+set.seed(123)   
+wordcloud(words = frequent_terms1$WORD, freq=frequent_terms1$FREQ, min.freq = 2, colors=brewer.pal(7, "Dark2"))
+
+#--------------------------------------
+# content --> Cleancorp1
+#making a term document matrix:
+content_tdm <- TermDocumentMatrix(clean_corp1, control = list(weighting = weightTfIdf))
+content_tdm
+
+content_m <- as.matrix(content_tdm)
+dim(content_m)
+content_m[148:159, 10:22]
+v1 <- sort(rowSums(content_m),decreasing=TRUE)
+d1 <- data.frame(word = names(v1),freq=v1)
+head(d1, 10)
+```
+
+# Content Anaysis with Bar chart and word cloud
+
+From here, we can observe that there are words like fuel, seat and brake which are more frequent but these point itself might not no or less meaning on its own. A good way to understand relationship between words is to tokenize into n-gram. 
+
+
+```{r text1, warning=FALSE, message=FALSE}
+
+barplot(d1[1:10,]$freq, las = 2, names.arg = d1[1:10,]$word,
+        col ="lightgreen", main ="Most frequent words on news content",
+        ylab = "Word frequencies")
+
+wordcloud(words = d$word, freq=d$freq, min.freq = 2, colors=brewer.pal(7, "Dark2"))
+
+
+```
+
+# Tokenizing by n-gram
+
+Bag of words model is a quick way to visualise and understand the context of large amount of text. However, it may not be well enough to understand the relationships between words. 
+
+The following steps we are going to explore using N-gram by tokenizing the words. By seeing how often word X is followed by word Y, we can then build a model of the relationships between them.
+
+A Tokenizer function is created below for bigram and trigram. 
+
+
+
+```{r ngram, warning=FALSE, message=FALSE}
+#tokeniser function: bigram
+tokenizer <- function(x){
+  NGramTokenizer(x, Weka_control(min =2, max = 2))
+}
+
+# Create bigram_dtm_m
+bigram_dtm <- DocumentTermMatrix((clean_corp1), control = list(tokenizer=tokenizer))
+bigram_dtm
+
+bigram_dtm_m <- as.matrix(bigram_dtm)
+
+# Create freq
+freq <- colSums(bigram_dtm_m)
+
+# Create bi_words
+bi_words <- names(freq)
+
+# Examine part of bi_words
+#str_subset(bi_words, "^kia")
+
+# Plot a wordcloud
+wordcloud(bi_words, freq, max.words =80, min.freq = 2, colors=brewer.pal(7, "Dark2"))
+
+
+# trigram
+
+#tokeniser function: bigram
+tokenizer <- function(x){
+  NGramTokenizer(x, Weka_control(min =3, max = 3))
+}
+
+# Create bigram_dtm_m
+trigram_dtm <- DocumentTermMatrix((clean_corp1), control = list(tokenizer=tokenizer))
+trigram_dtm
+
+trigram_dtm_m <- as.matrix(trigram_dtm)
+
+# Create freq
+freq2 <- colSums(trigram_dtm_m)
+
+# Create bi_words
+tri_words <- names(freq2)
+
+# Plot a wordcloud
+wordcloud(tri_words, freq2, max.words =20, min.freq = 2, colors=brewer.pal(7, "Accent"))
+
+
+
+```
+
+
+From here we can roughly induce that airbags are most frequently reported recall related defects and Takata airbag seem to be the highest occurence for Cars recall. 
+
+
+# Data Loading and cleaning Autoblog
+
+Autoblog is another websource contains the recall and defects detailed from all the cars between 2016-2018. 
+The contents have been transform into csv and is loaded (see below).
+
+```{r autoblog, warning=FALSE, message=FALSE}
+#new data from autoblog dot com
+Contents1 <- read.csv(file="content_1.csv", header=TRUE, sep=",")
+
+
+#create new corpus
+str(Contents1)
+nrow(Contents1)
+title_text1 <- Contents1$title
+title_source1 <- VectorSource(title_text1)
+title_corpus1 <- VCorpus(title_source1)
+title_corpus1
+
+title_text1 <- as.character(title_text1)
+
+
+all_stops <- c("administration", "S" , "group" , "announce","increases", "editors", "line", "dealers", "sponsored", "content", "said", "learn", "accept", "begin", "aware","increasing", "hotline", "editorial", "cars", "number", "approximately", "traffic","adminstrations", "vehicle", "carscom", "will", ", wwwsafercargov", "find", "dealer", "repair" ,"carscoms","free", "may", "problem", "affected", "can","a", "s ", "q", "x", "us", "immediately", "wwwsafercargov", "info", "recall", "recalls", "alert", "vehicles", "fix", "check" ,"owners", "service" ,"modelyear",
+               "reviewers", "sales", "campaigns", "expands", "department","models", "million", "due", "annouces", "new", "two", "recalled", "departments", "k", "nearly", "gm" , "recalling", "m", "update" ,"notifying", "manufactured", "automakers" ,"safety", "national", "trips", "source", "automotive", "website", "click","independent", "advertising" ,"policy","annouce", "call", "replace", "automaker", "news", "ownernotification", "model", "ethics", "longstanding", "dealership", "reviews", "dont", "department", "th", "visit", "go", "plant", "gle", "local", "need","gifts", "identification", "schedule", stopwords("en"))
+
+
+# Well nothing stands out in particular, exepct ties and articles, so the standard wocabulary of stopwords
+# in English will do just fine.
+# Create the custom function that will be used to clean the corpus: clean_coupus
+clean_corpus2 <- function(corpus){
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, all_stops)
+  return(corpus)
+}
+# Apply your customized function to the tweet_corp: clean_corp
+clean_corp2 <- clean_corpus(title_corpus1)
+# Print out a cleaned up tweet
+clean_corp2[[227]][1]
+
+
+#fast cleaning 
+title_text1 <- removePunctuation(title_text1)
+title_text1 <- removeNumbers(title_text1)
+title_text1 <- tolower(title_text1)
+title1 <- stripWhitespace(title_text1)
+# Print text without standard stop words
+title_text1 <- removeWords(title_text1, all_stops)
+
+#Let's find the most frequent words in our tweets_text and see whether we should get rid of some
+frequent_terms2 <- freq_terms(title_text1, 30)
+plot(frequent_terms2)
+
+set.seed(123)   
+wordcloud(words = frequent_terms2$WORD, freq=frequent_terms2$FREQ, min.freq = 2, colors=brewer.pal(7, "Dark2"))
+
+# looks like there could be some good work to deep further on this blog to understand what are are the defects about
+
+```
+
+# perform stemming ont the word "recall" - recalling, recalled, recalls, recall 
+
+# Corpus Similiarity 
+
+In this section, we do a quick comparison cloud between 2 corpus (one from Cars.com and the other from Autoblog). 
+
+
+```{r simliar, warning=FALSE, message=FALSE}
+
+# Combine both corpora: all_recall
+
+all_carscom <- paste(Content$content, collapse = "")
+all_autoblog <- paste(Contents1$title, collapse = "")
+all_recall<- c(all_carscom, all_autoblog)
+
+# clean all_tweets
+all_recall <- VectorSource(all_recall)
+all_corpus <- VCorpus(all_recall)
+
+
+# Add new stop words to clean_corpus()
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, all_stops)
+  return(corpus)
+}
+all_clean <- clean_corpus(all_corpus)
+all_tdm <- TermDocumentMatrix(all_clean)
+all_m <- as.matrix(all_tdm)
+
+# Make commonalitiy cloud
+commonality.cloud(all_m, 
+                  colors = "steelblue1",
+                  max.words = 100)
+
+# Create comparison cloud
+comparison.cloud(all_m,
+                 colors = c("orange", "blue"),
+                 max.words = 50, width=880,height=800)
+
+
+```
+
+
+# Pyramid plot
+
+Pyramid Plot is used to find out more if occurence of words between 2 corpus.
+From this chart below, we notice that both airbag and takata appears more frequently in the 2 corpus.
+
+```{r simliar1, warning=FALSE, message=FALSE}
+
+# Identify terms shared by both documents
+common_words <- subset(
+  all_m,
+  all_m[, 1] > 0 & all_m[, 2] > 0
+)
+
+head(common_words)
+
+# calc common words and difference
+difference <- abs(common_words[, 1] - common_words[, 2])
+common_words <- cbind(common_words, difference)
+common_words <- common_words[order(common_words[, 3],
+                                   decreasing = T), ]
+head(common_words)
+
+
+top25_df <- data.frame(x = common_words[1:25, 1],
+                       y = common_words[1:25, 2],
+                       labels = rownames(common_words[1:25, ]))
+
+# The plotrix package has been loaded
+
+# Make pyramid plot
+pyramid.plot(top25_df$x, top25_df$y,
+             labels = top25_df$labels, 
+             main = "Words in Common",
+             gap = 18,
+             laxlab = NULL,
+             raxlab = NULL, 
+             unit = NULL,
+             top.labels = c("Cars.com",
+                            "Words",
+                            "Autoblog")
+)
+
+```
+
+
+# Dendogram 
+A hierachial clustering is done on autoblog dataset. Euclidean distance is used for this model. 
+
+```{r wordnet, warning=FALSE, message=FALSE}
+# Create word network
+# say we want to know moe about a particular faiure such as fire
+
+#word_associate(
+#  content_text,
+#  match.string = c("takata"),
+#  stopwords = all_stops,
+#  network.plot = T,
+#  cloud.colors = c("gray85", "darkred")
+#  )
+
+# WORD CLUSTERING (1st level) 
+
+#i am going to perform word cluster on autblog data 
+
+# Making the document term matrix: 
+
+content_dtm2 <- DocumentTermMatrix(clean_corp2)
+content_dtm2 
+
+#convert the dtm to a matrix: title_m
+content_m2 <- as.matrix(content_dtm2)
+dim(content_dtm2)
+content_dtm_rm_sparse2 <- removeSparseTerms(content_dtm2 , 0.98)
+# Print out tweets_dtm data
+content_dtm_rm_sparse2
+
+content_m2 <- as.matrix(content_dtm_rm_sparse2)
+dim(content_m2)
+content_m2[148:159, 10:22]
+
+
+#making a term document matrix:
+content_tdm2 <- TermDocumentMatrix(clean_corp2, control = list(weighting = weightTfIdf))
+content_tdm2
+
+contenT_m2 <- as.matrix(content_tdm2)
+dim(contenT_m2)
+contenT_m2[148:159, 10:22]
+
+
+content_tdm2 <- removeSparseTerms(content_tdm2, sparse = 0.98)
+
+hc <- hclust(d = dist(content_tdm2, method = "euclidean"), method = "complete")
+
+# Plot a dendrogram
+plot(hc)
+```
+
+There might not be strong meaning gather from this dendogram but we can rougly induce that Takata airbags are closely related, followed and Takata airbag in this Dendrogram. When we cross reference to the news article, we found out that in 2018, there was a major recall for various of vechicles which had Takta air bags. 
+
+Some other sort of data cleaning is needed before we can perform a good clustering.
+
+
+
+#Word Association
+
+Using a function in TM package called findAssocs() to calculate the correlation with other wor in TDM. For example in this case, we want to know how often does Airbag appears with another word. 
+
+For any given word, findAssocs() calculates its correlation with every other word in a TDM or DTM.
+Scores range from 0 to 1. A score of 1 means that two words always appear together, while a score of 0 means that they never appear together.
+
+The function will return a list of all other terms that meet or exceed the minimum threshold.
+Minimum correlation values are often relatively low because of word diversity. Don't be surprised if 0.10 demonstrates a strong pairwise term association.
+
+From this example, we learnt that airbag as strong correlation association with takata and honda. 
+
+```{r association, warning=FALSE, message=FALSE}
+# create word association 
+# Create associations
+associations <- findAssocs(content_tdm2, "airbag", 0.1)
+
+# View the venti associations
+associations
+
+# Create associations_df
+associations_df <- list_vect2df(associations)[, 2:3]
+head(associations_df)
+
+# Plot the associations_df values (don't change this)
+ggplot(associations_df, aes(y = associations_df[, 1])) + 
+  geom_point(aes(x = associations_df[, 2]), 
+             data = associations_df, size = 3) + 
+  ggtitle("Word Associations to 'airbag'") + 
+  theme_gdocs()
+
+```
+
+
+
