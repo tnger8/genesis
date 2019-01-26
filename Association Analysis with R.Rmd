@@ -1,0 +1,100 @@
+---
+title: "Association Analysis with R"
+author: "Jia Xin"
+date: "January 26, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Association Analysis with R
+
+
+Data set is downloaded from http://www.sci.csueastbay.edu/~esuess/classes/Statistics_6620/Presentations/ml13/groceries.csv
+Reference [1]
+Source code/ texts is reference from;
+https://rstudio-pubs-static.s3.amazonaws.com/280759_c7acd79b21b24b959f58d9bf8b519cf8.html
+
+To read data , we need to use read.transactions() function under arules package. There are total of 9835 transaction (rows) and 169 columns (unique items) purchased by the customers during 1 month period. Intend to use the association analysis to observe any frequent item set or special patterns. 
+
+```{r readfile}
+library(arules)
+
+#read file
+groceries <- read.transactions("http://www.sci.csueastbay.edu/~esuess/classes/Statistics_6620/Presentations/ml13/groceries.csv", sep = ",")
+summary(groceries) # summary overview of data
+
+```
+
+Observe the first 6 items (transaction), using the inspect();
+
+```{r pressure}
+
+inspect(groceries[1:6])
+
+# Display the freq of each of itemset arranged in alphabetical order 
+itemFrequency(groceries[, 1:10])
+
+```
+
+
+Use an itemFrequencyPlot() function -- to disaplay as bar chart. The support can be changed. in this case it is 0.1 (or 10%). Only those greater than 10% are shown in the bar chart. There are other ways to display freq plot (such as using topN)
+
+```{r support}
+
+itemFrequencyPlot(groceries, support = 0.1)
+
+itemFrequencyPlot(groceries, topN = 20) #showing top 20 item set.
+
+```
+
+
+columns represents unique items bought by the customer per transaction, the black dot shown in the plot will indicates specific items bought per customer.
+using image(sample(groceries,100)) where 100 refers to random samples from the dataset. 
+
+```{r support1}
+image(groceries[1:10])
+
+image(sample(groceries, 100))
+
+```
+
+
+```{r apori}
+groceryrules <- apriori(groceries, parameter = list(support =
+                          0.006, confidence = 0.25, minlen = 2))
+
+groceryrules
+summary(groceryrules)
+```
+
+Adapted from Reference [1]
+Using the inspect() to examine the first three rules below. Each rule contains information of {x} -> {y} relationship with their respective support, confidence and life values. Support as mentioned previously, measurees how freuquently it occures in the data; confidence is a measure of its predictive power or accuracy, and life is a rule measures how much more likely one item or itemset is purchased relative to its typical rate of purchase.
+
+For example, the first rule states that customer who bought potted plants is more likely to buy whole milk. The support shows that 0.6% of time the potted plants is purchased in all transaction of the groceries data, and condidence indicates that 40% of the transaction where the present of potted plants results in the presence of whole milk. The life shows that customer who purchased the potted plants is 1.56 times more likely to purchase the whole milk. A larger lift value is a strong indicator that arule is important and reflects a true connection between the items in the rules.
+
+```{r rules}
+inspect(groceryrules[1:5])
+
+
+```
+
+A useful way to examine the association rules set is to look at rules with higher lift because a larger life value indicates a strong connection between items that were hidden previously. For example, a rule with the highest lift in the dataset is one that associate herbs with the root vegatables; a customer who bought herbs is almost 4 times likely to purchase root vegatables than a typical customer.
+
+```{r rules2}
+
+inspect(sort(groceryrules, by = "lift")[1:5])
+
+berryrules <- subset(groceryrules, items %in% "berries")
+inspect(berryrules)
+
+milkrules <- subset(groceryrules, items %in% "whole milk")
+inspect(milkrules)
+
+groceryrules_df <- as(groceryrules, "data.frame")
+str(groceryrules_df)
+
+#write(groceryrules, file = "groceryrules.csv", sep = ",", quote = TRUE, row.names = FALSE)
+```
