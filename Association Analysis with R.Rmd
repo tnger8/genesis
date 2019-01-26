@@ -21,7 +21,7 @@ To read data , we need to use read.transactions() function under arules package.
 
 ```{r readfile}
 library(arules)
-
+library(arulesViz)
 #read file
 groceries <- read.transactions("http://www.sci.csueastbay.edu/~esuess/classes/Statistics_6620/Presentations/ml13/groceries.csv", sep = ",")
 summary(groceries) # summary overview of data
@@ -77,7 +77,7 @@ For example, the first rule states that customer who bought potted plants is mor
 
 ```{r rules}
 inspect(groceryrules[1:5])
-
+plot(groceryrules[1:5],method="graph")
 
 ```
 
@@ -88,10 +88,6 @@ A useful way to examine the association rules set is to look at rules with highe
 inspect(sort(groceryrules, by = "lift")[1:5])
 
 berryrules <- subset(groceryrules, items %in% "berries")
-inspect(berryrules)
-
-milkrules <- subset(groceryrules, items %in% "whole milk")
-inspect(milkrules)
 
 groceryrules_df <- as(groceryrules, "data.frame")
 str(groceryrules_df)
